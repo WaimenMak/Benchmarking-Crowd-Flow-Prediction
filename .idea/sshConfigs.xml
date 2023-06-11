@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SshConfigs">
-    <configs>
-      <sshConfig authType="PASSWORD" host="login.delftblue.tudelft.nl" id="7a3471e0-5eed-4577-b781-8dce297b56c4" port="22" nameFormat="DESCRIPTIVE" username="mmai" useOpenSSHConfig="true" />
-    </configs>
-  </component>
-</project>
