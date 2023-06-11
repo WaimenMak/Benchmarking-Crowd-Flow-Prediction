@@ -8,4 +8,4 @@ fig/
 .idea/
 __pycache__/
 /.DS_Store/
-draft.ipynb/
+/draft.ipynb
