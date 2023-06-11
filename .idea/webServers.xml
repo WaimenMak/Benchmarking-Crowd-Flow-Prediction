@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="34f180ec-2fb3-4159-a01d-5c68e93ca849" name="sftp://mmai@login.delftblue.tudelft.nl">
+        <fileTransfer rootFolder="/home/mmai/" accessType="SFTP" host="login.delftblue.tudelft.nl" port="22" sshConfigId="7a3471e0-5eed-4577-b781-8dce297b56c4" sshConfig="mmai@login.delftblue.tudelft.nl:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
