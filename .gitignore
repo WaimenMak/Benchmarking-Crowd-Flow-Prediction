@@ -4,3 +4,5 @@ sc sensor/
 raw_data/
 sc sensor 2/
 /Exp.xlsx
+fig/
+.ipynb_checkpoints/
