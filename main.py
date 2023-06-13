@@ -21,6 +21,7 @@ def str_to_bool(value):
         return True
     raise ValueError(f'{value} is not a valid boolean value')
 
+# mmai$ ssh mmai@login.delftblue.tudelft.nl
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='in-sample', help='dataset choice')
