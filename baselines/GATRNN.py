@@ -14,11 +14,11 @@ import math
 import random
 import logging
 import argparse
-from lib.train_test import train, test
+from lib.train_test import Trainer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class GATGRULayer(nn.Module):
@@ -309,8 +309,55 @@ class GATSeq2seq(nn.Module):
 
         return  outputs # (seq_length, batch_size, num_nodes*output_dim)  (12, 64, 3)
 
+def main(args):
+    G = build_graph()
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
+    adj_mat.setdiag(1)
+    args.batch_size = 64
+    args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
+    args.dec_input_dim = 3  # decoder input
+    args.num_nodes = 35
+    args.num_rnn_layers = 2
+    args.num_heads = 3
+    args.rnn_units = 64
+    args.seq_len = 12
+    args.output_dim = 3
+    args.max_grad_norm = 5
+    args.cl_decay_steps = 2000
 
+    #File handeler
+    file_handler = logging.FileHandler("./result/train "+args.filename+".log")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(file_handler)
 
+    #Load data
+    if args.mode == "in-sample":
+        data = load_dataset("./dataset", batch_size=64, test_batch_size=64)
+    elif args.mode == "ood":
+        data = load_dataset("./ood_dataset", batch_size=64, test_batch_size=64)
+
+    #Begin training
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Using device: {args.device}")
+    args.data_loader = data["train_loader"]
+    args.val_dataloader = data["val_loader"]
+    args.test_dataloader = data["test_loader"]
+    args.scalers = data["scalers"]
+    model = GATSeq2seq(adj_mat, args)
+    args.optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01, eps=1.0e-3, amsgrad=True)
+    args.num_samples = data["x_train"].shape[0]
+    args.val_samples = data["x_val"].shape[0]
+    args.test_samples = data["x_test"].shape[0]
+    args.train_iters = math.ceil(args.num_samples / args.batch_size)
+    args.val_iters = math.ceil(args.val_samples / args.batch_size)
+    args.test_iters = math.ceil(args.test_samples / args.batch_size)
+    args.early_stopper = EarlyStopper(tolerance=15, min_delta=0.01)
+
+    args.len_epoch = 150  #500
+    trainer = Trainer(model, args, logger)
+    total_train_time = trainer.train()
+    trainer.test(total_train_time)
 
 if __name__ == "__main__":
     training_iter_time = 0
@@ -320,7 +367,9 @@ if __name__ == "__main__":
     parser.add_argument('--filename', type=str, default='gatrnn', help='file name')
     args = parser.parse_args()
     G = build_graph()
-    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")
+    # adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")   # v1
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr") # v2
+    adj_mat.setdiag(1)                                             # v2
     args.batch_size = 64
     args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
     args.dec_input_dim = 3  # decoder input

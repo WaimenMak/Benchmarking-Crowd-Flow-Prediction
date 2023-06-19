@@ -154,6 +154,7 @@ if __name__ == "__main__":
     total_train_time = 0
     G = build_graph()
     adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
+    adj_mat.setdiag(1)
     args.default_graph = adj_mat
     args.batch_size = 64
     args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
