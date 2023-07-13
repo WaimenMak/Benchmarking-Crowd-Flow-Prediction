@@ -274,6 +274,8 @@ class GATSeq2seq(nn.Module):
         self._num_rnn_layers = args.num_rnn_layers  # should be 2
         self._rnn_units = args.rnn_units  # should be 64
         self._seq_len = args.seq_len  # should be 12
+        self.batch_size = args.batch_size
+        self.num_nodes = args.num_nodes
         # use_curriculum_learning = bool(model_kwargs.get('use_curriculum_learning', False))  # should be true
         self._output_dim = args.output_dim  # should be 3: in out flow. overall.
         self.enc_input_dim = args.enc_input_dim
@@ -305,17 +307,18 @@ class GATSeq2seq(nn.Module):
         outputs = torch.stack(outputs)
         # the elements of the first time step of the outputs are all zeros.
         outputs = outputs.swapaxes(0, 1)
-        outputs = outputs.reshape([args.batch_size, args.num_nodes, args.seq_len, -1]).permute(0, 2, 1, 3)
-
+        outputs = outputs.reshape([self.batch_size, self.num_nodes, self._seq_len, -1]).permute(0, 2, 1, 3)
         return  outputs # (seq_length, batch_size, num_nodes*output_dim)  (12, 64, 3)
 
 def main(args):
     G = build_graph()
-    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")
     adj_mat.setdiag(1)
+    # Specific hyperparameters
     args.batch_size = 64
     args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
     args.dec_input_dim = 3  # decoder input
+    args.features = 3      # actual features
     args.num_nodes = 35
     args.num_rnn_layers = 2
     args.num_heads = 3

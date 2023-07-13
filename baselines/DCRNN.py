@@ -414,7 +414,7 @@ def main(args):
     # args = parser.parse_args()
     # total_train_time = 0
     G = build_graph()
-    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")
     adj_mat.setdiag(1)
 
     args.batch_size = 64

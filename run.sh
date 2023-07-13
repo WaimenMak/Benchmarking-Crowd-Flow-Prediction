@@ -23,6 +23,7 @@ source "$(conda info --base)/etc/profile.d/conda.sh"
 
 conda activate cp
 cd ${HOME}/Devs/Crowd\-Prediction
-python main.py --mode ood --file dcrnn
+#python main.py --mode ood --file dcrnn
+python main.py --mode ood --file gatrnn
 
 #export conda_env=${HOME}/anaconda3/envs/frl

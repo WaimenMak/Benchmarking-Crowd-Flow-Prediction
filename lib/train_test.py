@@ -127,7 +127,6 @@ class Trainer():
                     break
 
             train_rmse_loss = train_rmse_loss / args.train_iters
-            # print(f"Epoch: {epoch}, train_RMSE: {train_rmse_loss}")
             writer.add_scalar("Loss/train", loss.item(), global_step=epoch)
             logger.info(f"Epoch [{epoch+1}/{args.len_epoch}], train_RMSE: {train_rmse_loss:.4f}")
 
