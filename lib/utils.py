@@ -2,6 +2,7 @@ import logging
 
 import numpy
 import numpy as np
+import pandas as pd
 import os
 import pickle
 import scipy.sparse as sp
@@ -499,3 +500,48 @@ def plot_multiple_figures(pred:list, target:numpy, models:list, step:int, node:i
     fig.suptitle(f'Predictions and Targets on Step {step+1}, Node {node+1}')
     fig.savefig(f'{path}/insample.pdf')
     plt.show()
+
+def gen_data_dict(df_dict:dict):
+    data_dict = {}
+    for k in df_dict.keys():
+        mat_list = []
+        for col in df_dict[k].columns:
+            mat_list.append(np.array(df_dict[k][col].values.tolist()))
+        data_dict[k] = np.stack(mat_list, axis=1)
+
+def process_sensor_data(parent_dir, df_dict):
+    for subdir, dirs, files in os.walk(parent_dir):
+        # Initialize an empty list to hold the dataframes for this subdirectory
+        df_list = []
+        # Loop through each file in the subdirectory
+        files.sort()
+        for filename in files:
+            # Check if the file is a Excel file
+            if filename.endswith('.xlsx'):
+                df = pd.read_excel(subdir + '/' + filename, header=None, index_col=0)
+                df = df.T
+                temp = df.columns
+                for i in range(len(temp)):
+                    if pd.isna(temp[i]):
+                        df.iloc[:, i] = df.iloc[:, i-2] + df.iloc[:, i-1]
+                        df = df.rename(columns={df.columns[i]: 'Sum'})
+
+                # add a new column that contains the sum of the last two columns
+                df.insert(df.shape[1], '', df.iloc[:, -2] + df.iloc[:, -1])
+                # rename the last column to "Sum"
+                df = df.rename(columns={df.columns[-1]: "Sum"})
+                for i in range(len(temp)):
+                    if df.columns[i] == "Station_hall_layer" or df.columns[i] == "Platform_layer":
+                        sub_df = df.iloc[:,i+1:i+5]
+                        flow_data = np.stack([sub_df["Left to Right"].values, sub_df["Right to Left"].values, sub_df["Sum"].values], axis=1).astype("int")
+                        df_list.append(pd.Series([row for row in flow_data], name = "sensor_" + df.iloc[0, i].split(" ")[1]))
+
+            if df_list:
+                df_concatenated = pd.concat(df_list, axis=1)
+                # print(subdir)
+                sorted_cols = sorted(df_concatenated.columns, key=lambda x: int(x.split('_')[1])) # sort the column name
+                df_concatenated = df_concatenated.reindex(columns=sorted_cols)
+                # Add the concatenated dataframe to the dictionary with the subdirectory name as the key
+                df_dict[subdir] = df_concatenated
+
+    return df_dict
