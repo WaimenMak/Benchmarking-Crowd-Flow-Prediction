@@ -408,11 +408,8 @@ class DCRNNModel(BaseModel):
         return self._num_nodes
 
 def main(args):
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--mode', type=str, default='in-sample', help='dataset choice')
-    # parser.add_argument('--filename', type=str, default='dcrnn', help='file name')
-    # args = parser.parse_args()
-    # total_train_time = 0
+
+    total_train_time = 0
     G = build_graph()
     adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")
     adj_mat.setdiag(1)
@@ -451,7 +448,7 @@ def main(args):
     args.test_dataloader = data["test_loader"]
     args.scalers = data["scalers"]
     model = DCRNNModel(adj_mat, args)
-    # model.train()
+
     args.optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01, eps=1.0e-3, amsgrad=True)
     args.num_samples = data["x_train"].shape[0]
     args.val_samples = data["x_val"].shape[0]
@@ -460,14 +457,12 @@ def main(args):
     args.val_iters = math.ceil(args.val_samples / args.batch_size)
     args.test_iters = math.ceil(args.test_samples / args.batch_size)
     args.early_stopper = EarlyStopper(tolerance=10, min_delta=0.01)
-    # training_iter_time = num_samples / batch_size
-    # len_epoch = math.ceil(num_samples / batch_size)
 
     args.len_epoch = 150  #500
     trainer = Trainer(model, args, logger)
-    total_train_time = trainer.train()
+    # total_train_time = trainer.train()  # annotate for testing
     trainer.test(total_train_time)
-    # logger.info(f"testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}, test_MASK_RMSE: {test_mask_rmse_loss:.4f}, test_MASK_MAE: {test_mask_mae_loss:.4f}, test_MASK_MAPE: {test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

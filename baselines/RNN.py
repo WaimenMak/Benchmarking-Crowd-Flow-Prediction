@@ -133,7 +133,7 @@ class Seq2seq(nn.Module):
 
 def main(args):
     # import time
-
+    total_train_time = 0
     # parser = argparse.ArgumentParser()
     # for time calculating
     # training_iter_time = 0
@@ -185,7 +185,7 @@ def main(args):
     # len_epoch = math.ceil(num_samples / batch_size)
     args.len_epoch = 200 #500
     trainer = Trainer(model, args, logger)
-    total_train_time = trainer.train()
+    # total_train_time = trainer.train() # annotate when testing
     trainer.test(total_train_time)
 
 if __name__ == "__main__":

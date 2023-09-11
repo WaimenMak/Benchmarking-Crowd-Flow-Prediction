@@ -7,10 +7,11 @@ import time
 import os
 import torch
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from torch.utils.tensorboard import SummaryWriter
 from lib.utils import _compute_sampling_threshold
-from lib.metric import masked_rmse_np, masked_mape_np, masked_mae_np, masked_mae_loss
+from lib.metric import masked_rmse_np, masked_mape_np, masked_mae_np, masked_mae_loss, rho_risk, weighted_average_loss
 
 def sum_step_loss(args):
     def sum_step(output, label):
@@ -201,12 +202,17 @@ class Trainer():
         test_mask_rmse_loss = []
         test_mask_mae_loss = []
         test_mask_mape_loss = []
-        half_test_mask_rmse_loss = []
-        half_test_mask_mae_loss = []
+        test_rho_risk = []
+        test_weighted_rmse = []
+        # half_test_mask_rmse_loss = []
+        # half_test_mask_mae_loss = []
         half_test_mask_mape_loss = []
-        end_test_mask_rmse_loss = []
-        end_test_mask_mae_loss = []
+        # end_test_mask_rmse_loss = []
+        # end_test_mask_mae_loss = []
         end_test_mask_mape_loss = []
+        multistep_rmse = {i: [] for i in range(args.seq_len)}
+        multistep_mae = {i: [] for i in range(args.seq_len)}
+        multistep_wae = {i: [] for i in range(args.seq_len)}
         if args.mode == "in-sample":
             model.load_state_dict(torch.load("./result/"+args.filename+".pt"))
         elif args.mode == "ood":
@@ -238,11 +244,20 @@ class Trainer():
                 test_mask_rmse_loss.append(masked_rmse_np(output.numpy(), label.numpy()))
                 test_mask_mae_loss.append(masked_mae_np(output.numpy(), label.numpy()))
 
-                half_test_mask_rmse_loss.append(masked_rmse_np(output.numpy()[:,5,:,:], label.numpy()[:,5,:,:]))
-                half_test_mask_mae_loss.append(masked_mae_np(output.numpy()[:,5,:,:], label.numpy()[:,5,:,:]))
+                # RMSE
+                for step_t in range(args.seq_len):
+                    multistep_rmse[step_t].append(masked_rmse_np(output[:,step_t,:,:].numpy(), label[:,step_t,:,:].numpy()))
+                # MAE
+                for step_t in range(args.seq_len):
+                    multistep_mae[step_t].append(masked_mae_np(output[:,step_t,:,:].numpy(), label[:,step_t,:,:].numpy()))
 
-                end_test_mask_rmse_loss.append(masked_rmse_np(output.numpy()[:,11,:,:], label.numpy()[:,11,:,:]))
-                end_test_mask_mae_loss.append(masked_mae_np(output.numpy()[:,11,:,:], label.numpy()[:,11,:,:]))
+                # Quantile Loss
+                test_rho_risk.append(np.mean(rho_risk(output.numpy(), label.numpy(), timespan=3, rho=0.9)))
+
+                # #Weighted Average RMSE
+                # _, wae, _ = weighted_average_loss(output, label, timespan=3, rho=0.9, mode=1)
+                # for step_t in range(args.seq_len):
+                #     multistep_wae[step_t].append(np.mean(wae, axis=(1,2)))
 
                 for i in range(3): #3 feature num
                     output[..., i] = args.scalers[i].transform(output[..., i])
@@ -252,33 +267,49 @@ class Trainer():
                 end_test_mask_mape_loss.append(masked_mape_np(output.numpy()[:,11,:,:], label.numpy()[:,11,:,:]))
 
         # test_mse_loss = test_mse_loss / args.test_iters
+        for t in range(args.seq_len):
+            multistep_rmse[t] = np.mean(multistep_rmse[t])
+            multistep_mae[t] = np.mean(multistep_mae[t])
+            # multistep_wae[t] = np.mean(multistep_wae[t])
         test_mse_loss = np.mean(test_mse_loss)
         test_mask_rmse_loss = np.mean(test_mask_rmse_loss)
         test_mask_mape_loss = np.mean(test_mask_mape_loss)
         test_mask_mae_loss = np.mean(test_mask_mae_loss)
-        half_test_mask_rmse_loss = np.mean(half_test_mask_rmse_loss)
+        half_test_mask_rmse_loss = multistep_rmse[5]
         half_test_mask_mape_loss = np.mean(half_test_mask_mape_loss)
-        half_test_mask_mae_loss = np.mean(half_test_mask_mae_loss)
-        end_test_mask_rmse_loss = np.mean(end_test_mask_rmse_loss)
+        half_test_mask_mae_loss = multistep_mae[5]
+        end_test_mask_rmse_loss = multistep_rmse[11]
         end_test_mask_mape_loss = np.mean(end_test_mask_mape_loss)
-        end_test_mask_mae_loss = np.mean(end_test_mask_mae_loss)
-
-        self.logger.info(f"model: {args.filename}, testing method: {args.mode}, curriculum: {args.cl}, test_RMSE: {test_mse_loss:.4f}, input seq len:{args.step}")
+        end_test_mask_mae_loss = multistep_mae[11]
+        self.logger.info(f"model: {args.filename}, testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}, input seq len: {args.step}")
         self.logger.info(f"half_test_MASK_RMSE:{half_test_mask_rmse_loss:.4f}, half_test_MASK_MAE: {half_test_mask_mae_loss:.4f}, half_test_MASK_MAPE: {half_test_mask_mape_loss:.4f}")
         self.logger.info(f"end_test_MASK_RMSE:{end_test_mask_rmse_loss:.4f}, end_test_MASK_MAE: {end_test_mask_mae_loss:.4f}, end_test_MASK_MAPE: {end_test_mask_mape_loss:.4f}")
         self.logger.info(f"avg_test_MASK_RMSE: {test_mask_rmse_loss:.4f}, avg_test_MASK_MAE: {test_mask_mae_loss:.4f}, avg_test_MASK_MAPE: {test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
+        self.logger.info(f"Quantile Loss: {np.mean(test_rho_risk):.4f}")
+        # self.logger.info(f"Weighted Average RMSE: {np.mean(test_weighted_rmse):.4f}")
+        # print multi-step loss
+        print("Multi-step RMSE: ", multistep_rmse.values())
+        print("Multi-step MAE: ", multistep_mae.values())
+        # print("Multi-step WAE: ", multistep_wae.values())
 
 def test_ml(data, loaded_model, args, logger, total_train_time):
+    # Dictionary that store multi step loss, the key is the step, the value is the list of loss
+    multistep_rmse = {i: [] for i in range(args.seq_len)}
+    multistep_mae = {i: [] for i in range(args.seq_len)}
+    multistep_wae = {i: [] for i in range(args.seq_len)}
+
     test_mse_loss = []
     test_mask_rmse_loss = []
     test_mask_mae_loss = []
     test_mask_mape_loss = []
-    half_test_mask_rmse_loss = []
-    half_test_mask_mae_loss = []
+    # half_test_mask_rmse_loss = []
+    # half_test_mask_mae_loss = []
     half_test_mask_mape_loss = []
-    end_test_mask_rmse_loss = []
-    end_test_mask_mae_loss = []
+    # end_test_mask_rmse_loss = []
+    # end_test_mask_mae_loss = []
     end_test_mask_mape_loss = []
+    test_rho_risk = []
+    test_weighted_rmse = []
 
     test_dataloader = data["test_loader"]
     for batch_idx, (input, org_target) in enumerate(test_dataloader.get_iterator()):
@@ -320,14 +351,30 @@ def test_ml(data, loaded_model, args, logger, total_train_time):
         test_rmse = [np.sum(np.sqrt(np.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, axis=(1,2)))) for step_t in range(12)]
         test_rmse = sum(test_rmse) / len(test_rmse) / args.batch_size
 
-
+        # RMSE
         test_mse_loss.append(test_rmse.item())
         test_mask_rmse_loss.append(masked_rmse_np(output, label)) # avg
-        half_test_mask_rmse_loss.append(masked_rmse_np(output[:,5,:,:], label[:,5,:,:])) # half
-        end_test_mask_rmse_loss.append(masked_rmse_np(output[:,11,:,:], label[:,11,:,:])) # end
+        # half_test_mask_rmse_loss.append(masked_rmse_np(output[:,5,:,:], label[:,5,:,:])) # half
+        # end_test_mask_rmse_loss.append(masked_rmse_np(output[:,11,:,:], label[:,11,:,:])) # end
+        for step_t in range(args.seq_len):
+            multistep_rmse[step_t].append(masked_rmse_np(output[:,step_t,:,:], label[:,step_t,:,:]))
+
+        # MAE
         test_mask_mae_loss.append(masked_mae_np(output, label))
-        half_test_mask_mae_loss.append(masked_mae_np(output[:,5,:,:], label[:,5,:,:]))
-        end_test_mask_mae_loss.append(masked_mae_np(output[:,11,:,:], label[:,11,:,:]))
+        # half_test_mask_mae_loss.append(masked_mae_np(output[:,5,:,:], label[:,5,:,:]))
+        # end_test_mask_mae_loss.append(masked_mae_np(output[:,11,:,:], label[:,11,:,:]))
+        for step_t in range(args.seq_len):
+            multistep_mae[step_t].append(masked_mae_np(output[:,step_t,:,:], label[:,step_t,:,:]))
+
+        # Quantile Loss
+        test_rho_risk.append(np.mean(rho_risk(output, label, timespan=3, rho=0.9))) # avg
+
+        # #Weighted Average RMSE
+        # for step_t in range(args.seq_len):
+        #     _, wae, _ = weighted_average_loss(output, label, timespan=3, rho=0.9, mode=1)
+        #     multistep_wae[step_t].append(np.mean(wae, axis=(1,2)))
+
+        # MAPE
         for i in range(args.features):
             output[..., i] = data["scalers"][i].transform(output[..., i])   #normalize
             label[..., i] = data["scalers"][i].transform(label[..., i])   #normalize
@@ -336,18 +383,31 @@ def test_ml(data, loaded_model, args, logger, total_train_time):
         end_test_mask_mape_loss.append(masked_mape_np(output[:,11,:,:], label[:,11,:,:]))
 
 
+
     # test_mse_loss = test_mse_loss / test_iters
+    for t in range(args.seq_len):
+        multistep_rmse[t] = np.mean(multistep_rmse[t])
+        multistep_mae[t] = np.mean(multistep_mae[t])
+        # multistep_wae[t] = np.mean(multistep_wae[t])
     test_mse_loss = np.mean(test_mse_loss)
     test_mask_rmse_loss = np.mean(test_mask_rmse_loss)
     test_mask_mape_loss = np.mean(test_mask_mape_loss)
     test_mask_mae_loss = np.mean(test_mask_mae_loss)
-    half_test_mask_rmse_loss = np.mean(half_test_mask_rmse_loss)
+    half_test_mask_rmse_loss = multistep_rmse[5]
     half_test_mask_mape_loss = np.mean(half_test_mask_mape_loss)
-    half_test_mask_mae_loss = np.mean(half_test_mask_mae_loss)
-    end_test_mask_rmse_loss = np.mean(end_test_mask_rmse_loss)
+    half_test_mask_mae_loss = multistep_mae[5]
+    end_test_mask_rmse_loss = multistep_rmse[11]
     end_test_mask_mape_loss = np.mean(end_test_mask_mape_loss)
-    end_test_mask_mae_loss = np.mean(end_test_mask_mae_loss)
+    end_test_mask_mae_loss = multistep_mae[11]
     logger.info(f"model: {args.filename}, testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}, input seq len: {args.step}")
     logger.info(f"half_test_MASK_RMSE:{half_test_mask_rmse_loss:.4f}, half_test_MASK_MAE: {half_test_mask_mae_loss:.4f}, half_test_MASK_MAPE: {half_test_mask_mape_loss:.4f}")
     logger.info(f"end_test_MASK_RMSE:{end_test_mask_rmse_loss:.4f}, end_test_MASK_MAE: {end_test_mask_mae_loss:.4f}, end_test_MASK_MAPE: {end_test_mask_mape_loss:.4f}")
     logger.info(f"avg_test_MASK_RMSE: {test_mask_rmse_loss:.4f}, avg_test_MASK_MAE: {test_mask_mae_loss:.4f}, avg_test_MASK_MAPE: {test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
+    logger.info(f"Quantile Loss: {np.mean(test_rho_risk):.4f}")
+    # logger.info(f"Weighted Average RMSE: {np.mean(test_weighted_rmse):.4f}")
+    # print multi-step loss
+    print("Multi-step RMSE: ", multistep_rmse.values())
+    print("Multi-step MAE: ", multistep_mae.values())
+    # print("Multi-step WAE: ", multistep_wae.values())
+
+

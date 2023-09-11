@@ -94,16 +94,16 @@ def main(args):
     # define early stopping
     early_stop = EarlyStopping(monitor='val_loss', patience=10, verbose=1)
     # Fit the model to the training data
-    model.fit(train_X, train_y, epochs=200, batch_size=64, validation_data=(val_X, val_y), callbacks=[early_stop])
+    # model.fit(train_X, train_y, epochs=200, batch_size=64, validation_data=(val_X, val_y), callbacks=[early_stop]) # test
     end_time = time.time()
     total_train_time = end_time - start_time
 
     if args.mode == "in-sample":
-        model.save('./result/RNN keras.h5')
+        # model.save('./result/RNN keras.h5')  # test
         loaded_model = load_model('./result/RNN keras.h5')
 
     else:
-        model.save('./result/linear/RNN keras ood.h5')
+        # model.save('./result/linear/RNN keras ood.h5') # test
         loaded_model = load_model('./result/linear/RNN keras ood.h5')
 
     test_ml(data, loaded_model, args, logger, total_train_time)

@@ -63,36 +63,23 @@ def main(args):
         """
         eval_set = [(data["x_val"][:,-args.step:,j,:].reshape([-1, args.step*args.features]),
                      data["y_val"][:,:,j,:].reshape([-1, args.seq_len*args.features]))]
-        model.fit(data["x_train"][:,-args.step:,j,:].reshape([-1, args.step*args.features]),
-                  data["y_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]), eval_set=eval_set, verbose=True)
-        # eval_set = [(data["x_val"][:,:,j,:].reshape([-1, args.seq_len*args.features]), data["y_val"][:,:,j,:].reshape([-1, args.seq_len*args.features]))]
-        # model.fit(data["x_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]), data["y_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]), eval_set=eval_set, verbose=True)
+        # model.fit(data["x_train"][:,-args.step:,j,:].reshape([-1, args.step*args.features]),   # test
+        #           data["y_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]), eval_set=eval_set, verbose=True)
 
     end_time = time.time()
     total_train_time = end_time - start_time
 
-
-    # test_mse_loss = 0
-    # test_mask_rmse_loss = []
-    # test_mask_mae_loss = []
-    # test_mask_mape_loss = []
-    # half_test_mask_rmse_loss = []
-    # half_test_mask_mae_loss = []
-    # half_test_mask_mape_loss = []
-    # end_test_mask_rmse_loss = []
-    # end_test_mask_mae_loss = []
-    # end_test_mask_mape_loss = []
     if args.mode == "in-sample":
         loaded_models = []
         for j, model in enumerate(models):
-            model.save_model(f'./result/boost/xgb_regressor{j}.model')
+            # model.save_model(f'./result/boost/xgb_regressor{j}.model') # test
             loaded_model = xgb.Booster()
             loaded_model.load_model(f'./result/boost/xgb_regressor{j}.model')
             loaded_models.append(loaded_model)
     elif args.mode == "ood":
         loaded_models = []
         for j, model in enumerate(models):
-            model.save_model(f'./result/boost/xgb_regressor_ood{j}.model')
+            # model.save_model(f'./result/boost/xgb_regressor_ood{j}.model') # test
             loaded_model = xgb.Booster()
             loaded_model.load_model(f'./result/boost/xgb_regressor_ood{j}.model')
             loaded_models.append(loaded_model)

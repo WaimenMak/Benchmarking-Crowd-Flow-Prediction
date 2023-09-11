@@ -508,6 +508,7 @@ def gen_data_dict(df_dict:dict):
         for col in df_dict[k].columns:
             mat_list.append(np.array(df_dict[k][col].values.tolist()))
         data_dict[k] = np.stack(mat_list, axis=1)
+    return data_dict
 
 def process_sensor_data(parent_dir, df_dict):
     for subdir, dirs, files in os.walk(parent_dir):

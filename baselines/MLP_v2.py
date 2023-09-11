@@ -59,7 +59,7 @@ def main(args):
         different from VAR, here the input data x should be processed with the seq lenth, e.g. args.seq_len --> args.step
         """
         eval_set = [(data["x_val"][:,-args.step:,j,:].reshape([-1, args.step*args.features]), data["y_val"][:,:,j,:].reshape([-1, args.seq_len*args.features]))]
-        model.fit(data["x_train"][:,-args.step:,j,:].reshape([-1, args.step*args.features]), data["y_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]))
+        # model.fit(data["x_train"][:,-args.step:,j,:].reshape([-1, args.step*args.features]), data["y_train"][:,:,j,:].reshape([-1, args.seq_len*args.features]))
 
     end_time = time.time()
     total_train_time = end_time - start_time
@@ -67,13 +67,13 @@ def main(args):
     if args.mode == "in-sample":
         loaded_models = []
         for j, model in enumerate(models):
-            pickle.dump(model, open(f'./result/mlp/MLP{j}.sav', 'wb'))
+            # pickle.dump(model, open(f'./result/mlp/MLP{j}.sav', 'wb')) # annotate this when testing
             loaded_model = pickle.load(open(f'./result/mlp/MLP{j}.sav', 'rb'))
             loaded_models.append(loaded_model)
     elif args.mode == "ood":
         loaded_models = []
         for j, model in enumerate(models):
-            pickle.dump(model, open(f'./result/mlp/MLP_ood{j}.sav', 'wb'))
+            # pickle.dump(model, open(f'./result/mlp/MLP_ood{j}.sav', 'wb')) # annotate this when testing
             loaded_model = pickle.load(open(f'./result/mlp/MLP_ood{j}.sav', 'rb'))
             loaded_models.append(loaded_model)
 

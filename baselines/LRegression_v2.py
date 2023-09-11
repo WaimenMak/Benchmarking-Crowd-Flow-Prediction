@@ -46,7 +46,7 @@ def main(args):
     else:
         raise ValueError
 
-    # Define the LRoost model
+    # Define the LR model
     models = [LinearRegression() for i in range(args.num_nodes)]
     # Fit the model to the training data
     start_time = time.time()
@@ -62,82 +62,17 @@ def main(args):
     total_train_time = end_time - start_time
 
 
-    # test_mse_loss = 0
-    # test_mask_rmse_loss = []
-    # test_mask_mae_loss = []
-    # test_mask_mape_loss = []
-    # half_test_mask_rmse_loss = []
-    # half_test_mask_mae_loss = []
-    # half_test_mask_mape_loss = []
-    # end_test_mask_rmse_loss = []
-    # end_test_mask_mae_loss = []
-    # end_test_mask_mape_loss = []
     loaded_models = []
     if args.mode == "in-sample":
         for j, model in enumerate(models):
-            pickle.dump(model, open(f'./result/linear/LR_regressor{j}.sav', 'wb'))
+            pickle.dump(model, open(f'./result/linear/LR_regressor{j}.sav', 'wb')) # annotate this line when testing
             loaded_model = pickle.load(open(f'./result/linear/LR_regressor{j}.sav', 'rb'))
             loaded_models.append(loaded_model)
     elif args.mode == "ood":
         loaded_models = []
         for j, model in enumerate(models):
-            pickle.dump(model, open(f'./result/linear/LR_regressor_ood{j}.sav', 'wb'))
+            pickle.dump(model, open(f'./result/linear/LR_regressor_ood{j}.sav', 'wb')) # annotate this line when testing
             loaded_model = pickle.load(open(f'./result/linear/LR_regressor_ood{j}.sav', 'rb'))
             loaded_models.append(loaded_model)
 
     test_ml(data, loaded_models, args, logger, total_train_time)
-    # test_dataloader = data["test_loader"]
-    #
-    # for batch_idx, (input, org_target) in enumerate(test_dataloader.get_iterator()):
-    #     for i in range(features): #3 feature num
-    #         input[..., i] = data["scalers"][i].inverse_transform(input[..., i]) # turn to original data
-    #
-    #     # input = input.reshape([-1, num_nodes * features * seq_len])
-    #     # target = org_target.reshape([-1, num_nodes * features * seq_len])
-    #     # label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
-    #     label = org_target
-    #     for i in range(features):
-    #         label[..., i] = data["scalers"][i].inverse_transform(label[..., i])   #normalize
-    #
-    #     outputs = []
-    #     for j, loaded_model in enumerate(loaded_models):
-    #         output = loaded_model.predict(input[:,:,j,:].reshape([-1, seq_len*features]))
-    #         output = output.reshape([batch_size, seq_len, features])
-    #         outputs.append(output)
-    #
-    #     output = np.stack(outputs, axis=2)
-    #     test_rmse = [np.sum(np.sqrt(np.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, axis=(1,2)))) for step_t in range(12)]
-    #     test_rmse = sum(test_rmse) / len(test_rmse) / batch_size
-    #
-    #     test_mse_loss += test_rmse.item()
-    #     test_mask_rmse_loss.append(masked_rmse_np(output, label)) # avg
-    #     half_test_mask_rmse_loss.append(masked_rmse_np(output[:,5,:,:], label[:,5,:,:])) # half
-    #     end_test_mask_rmse_loss.append(masked_rmse_np(output[:,11,:,:], label[:,11,:,:])) # end
-    #     test_mask_mae_loss.append(masked_mae_np(output, label))
-    #     half_test_mask_mae_loss.append(masked_mae_np(output[:,5,:,:], label[:,5,:,:]))
-    #     end_test_mask_mae_loss.append(masked_mae_np(output[:,11,:,:], label[:,11,:,:]))
-    #     for i in range(features):
-    #         output[..., i] = data["scalers"][i].transform(output[..., i])   #normalize
-    #         label[..., i] = data["scalers"][i].transform(label[..., i])   #normalize
-    #     test_mask_mape_loss.append(masked_mape_np(output, label))
-    #     half_test_mask_mape_loss.append(masked_mape_np(output[:,5,:,:], label[:,5,:,:]))
-    #     end_test_mask_mape_loss.append(masked_mape_np(output[:,11,:,:], label[:,11,:,:]))
-    #
-    #
-    # test_mse_loss = test_mse_loss / test_iters
-    #
-    # test_mask_rmse_loss = np.mean(test_mask_rmse_loss)
-    # test_mask_mape_loss = np.mean(test_mask_mape_loss)
-    # test_mask_mae_loss = np.mean(test_mask_mae_loss)
-    # half_test_mask_rmse_loss = np.mean(half_test_mask_rmse_loss)
-    # half_test_mask_mape_loss = np.mean(half_test_mask_mape_loss)
-    # half_test_mask_mae_loss = np.mean(half_test_mask_mae_loss)
-    # end_test_mask_rmse_loss = np.mean(end_test_mask_rmse_loss)
-    # end_test_mask_mape_loss = np.mean(end_test_mask_mape_loss)
-    # end_test_mask_mae_loss = np.mean(end_test_mask_mae_loss)
-    #
-    # logger.info(f"model: {args.filename}, testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}")
-    # logger.info(f"avg_test_MASK_RMSE: {test_mask_rmse_loss:.4f}, avg_test_MASK_MAE: {test_mask_mae_loss:.4f}, avg_test_MASK_MAPE: {test_mask_mape_loss:.4f}")
-    # logger.info(f"half_test_MASK_RMSE:{half_test_mask_rmse_loss:.4f}, half_test_MASK_MAE: {half_test_mask_mae_loss:.4f}, half_test_MASK_MAPE: {half_test_mask_mape_loss:.4f}")
-    # logger.info(f"end_test_MASK_RMSE:{end_test_mask_rmse_loss:.4f}, end_test_MASK_MAE: {end_test_mask_mae_loss:.4f}, end_test_MASK_MAPE: {end_test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
-    #

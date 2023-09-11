@@ -66,27 +66,17 @@ def main(args):
     # Fit the model to the training data
     start_time = time.time()
     logger.info(f"training start:")
-    model.fit(train_X, train_y)
+    # model.fit(train_X, train_y) # annotate this line when testing
     end_time = time.time()
     total_train_time = end_time - start_time
 
 
-    # test_mse_loss = 0
-    # test_mask_rmse_loss = []
-    # test_mask_mae_loss = []
-    # test_mask_mape_loss = []
-    # half_test_mask_rmse_loss = []
-    # half_test_mask_mae_loss = []
-    # half_test_mask_mape_loss = []
-    # end_test_mask_rmse_loss = []
-    # end_test_mask_mae_loss = []
-    # end_test_mask_mape_loss = []
     if args.mode == "in-sample":
-        pickle.dump(model, open('./result/mlp/MLP.sav', 'wb'))
+        # pickle.dump(model, open('./result/mlp/MLP.sav', 'wb')) # annotate this line when testing
         loaded_model = pickle.load(open('./result/mlp/MLP.sav', 'rb'))
 
     else:
-        pickle.dump(model, open('./result/mlp/MLP_ood.sav', 'wb'))
+        # pickle.dump(model, open('./result/mlp/MLP_ood.sav', 'wb')) # annotate this line when testing
         loaded_model = pickle.load(open('./result/mlp/MLP_ood.sav', 'rb'))
 
     test_ml(data, loaded_model, args, logger, total_train_time)
