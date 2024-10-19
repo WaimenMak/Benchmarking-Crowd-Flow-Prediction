@@ -513,6 +513,8 @@ def gen_data_dict(df_dict:dict):
 def process_sensor_data(parent_dir, df_dict):
     for subdir, dirs, files in os.walk(parent_dir):
         # Initialize an empty list to hold the dataframes for this subdirectory
+        if subdir in ["./sc sensor 2/crossroad1", "./sc sensor 2/crossroad2", "./sc sensor 2/crossroad3", "./sc sensor 2/crossroad4"]: # not include these files
+            pass
         df_list = []
         # Loop through each file in the subdirectory
         files.sort()
@@ -532,7 +534,7 @@ def process_sensor_data(parent_dir, df_dict):
                 # rename the last column to "Sum"
                 df = df.rename(columns={df.columns[-1]: "Sum"})
                 for i in range(len(temp)):
-                    if df.columns[i] == "Station_hall_layer" or df.columns[i] == "Platform_layer":
+                    if df.columns[i] in ["Station_hall_layer", "Platform_layer", "HeightLayer_1"]:
                         sub_df = df.iloc[:,i+1:i+5]
                         flow_data = np.stack([sub_df["Left to Right"].values, sub_df["Right to Left"].values, sub_df["Sum"].values], axis=1).astype("int")
                         df_list.append(pd.Series([row for row in flow_data], name = "sensor_" + df.iloc[0, i].split(" ")[1]))
