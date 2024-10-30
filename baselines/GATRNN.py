@@ -18,7 +18,7 @@ from lib.train_test import Trainer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class GATGRULayer(nn.Module):
@@ -60,6 +60,7 @@ class GATGRULayer(nn.Module):
         atten_mat = torch.bmm(z, z.transpose(2, 1)) #[bc node feat] * [bc feat node]
         mask = torch.zeros([self.nodes, self.nodes])
         mask[self.adj.row, self.adj.col] = 1
+        mask = mask.to(z.device)
         atten_mat = self.leaky_relu(atten_mat) * mask.unsqueeze(0)
         # atten_mat = self.leaky_relu(atten_mat)
         atten_mat.data.masked_fill_(torch.eq(atten_mat, 0), -float(1e16))
@@ -81,40 +82,6 @@ class GATGRULayer(nn.Module):
             # h_agg = torch.matmul(atten_mat, z)  # [bc, node, output_dim]
             h_agg.append(torch.bmm(atten_mat, z_))
         return h_agg
-
-# class GATGRULayer_dec(nn.Module):
-#     def __init__(self, feature_size, num_hiddens, num_layer, output_dim, dropout=0.01):
-#         super().__init__()
-#         self.dense = nn.Linear(num_hiddens, output_dim)
-#         self.rnn = nn.GRU(feature_size + num_hiddens, num_hiddens, num_layer, dropout=dropout)
-#         self.apply(init_seq2seq)
-#
-#     def forward(self, X, enc_state, teacher_forcing_ratio=0.5):
-#         # X shape: (seq, batch_size, num_steps), target
-#         # embs shape: (num_steps, batch_size, embed_size)
-#         # context shape: (batch_size, num_hiddens)
-#         context = enc_state[-1]
-#         last_hidden_state = enc_state
-#         # Broadcast context to (num_steps, batch_size, num_hiddens)
-#         context = context.repeat(X.shape[0], 1, 1)
-#         # Concat at the feature dimension
-#         embs_and_context = torch.cat((X, context), -1)  # seq, bc, features+hidden_dims
-#         outputs_list = []
-#         current_input = embs_and_context[0, ...].unsqueeze(dim=0)
-#         for t in range(1, X.shape[0]): #seq_len: 13
-#             outputs, state = self.rnn(current_input, last_hidden_state) #seq, bc, num_hiddens, hidden_state: 2 layers
-#             last_hidden_state = state
-#             outputs = self.dense(outputs)
-#             outputs_list.append(outputs.swapaxes(0, 1).squeeze())
-#
-#             teacher_force = random.random() < teacher_forcing_ratio  # a bool value
-#             current_input = (X[t, ...].unsqueeze(0) if teacher_force else outputs)
-#             current_input = torch.cat((current_input, context[t, ...].unsqueeze(0)), -1)
-#
-#
-#         # outputs shape: (batch_size, num_steps, vocab_size)
-#         # state shape: (num_layers, batch_size, num_hiddens)
-#         return outputs_list, state
 
 
 class GATLayer(nn.Module):
@@ -154,6 +121,7 @@ class GATLayer(nn.Module):
         atten_mat = torch.bmm(z, z.transpose(2, 1)) #[bc node feat] * [bc feat node]
         mask = torch.zeros([self.nodes, self.nodes])
         mask[self.adj.row, self.adj.col] = 1
+        mask = mask.to(z.device)
         atten_mat = self.leaky_relu(atten_mat) * mask.unsqueeze(0) # one hop
         # atten_mat = self.leaky_relu(atten_mat)
         atten_mat.data.masked_fill_(torch.eq(atten_mat, 0), -float(1e16))
@@ -342,12 +310,15 @@ def main(args):
 
     #Begin training
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # args.device = torch.device("mps")
     logger.info(f"Using device: {args.device}")
     args.data_loader = data["train_loader"]
     args.val_dataloader = data["val_loader"]
     args.test_dataloader = data["test_loader"]
     args.scalers = data["scalers"]
-    model = GATSeq2seq(adj_mat, args)
+    model = GATSeq2seq(adj_mat, args).to(args.device)
+
+    # model.to(args.device)
     args.optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01, eps=1.0e-3, amsgrad=True)
     args.num_samples = data["x_train"].shape[0]
     args.val_samples = data["x_val"].shape[0]
@@ -371,8 +342,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     G = build_graph()
     # adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")   # v1
-    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr") # v2
-    adj_mat.setdiag(1)                                             # v2
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="coo")
+    adj_mat.setdiag(1)                                          # v2
     args.batch_size = 64
     args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
     args.dec_input_dim = 3  # decoder input
@@ -387,26 +358,32 @@ if __name__ == "__main__":
 
     args.max_grad_norm = 5
     args.cl_decay_steps = 2000
+    args.cl = False
+    args.loss_func = "none"
+    args.step = args.seq_len
 
 
-    file_handler = logging.FileHandler("./result/train "+args.filename+".log")
+    file_handler = logging.FileHandler("../result/train "+args.filename+".log")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
 
 
     if args.mode == "in-sample":
-        data = load_dataset("./dataset", batch_size=64, test_batch_size=64)
+        data = load_dataset("../dataset", batch_size=64, test_batch_size=64)
     elif args.mode == "ood":
-        data = load_dataset("./ood_dataset", batch_size=64, test_batch_size=64)
+        data = load_dataset("../ood_dataset", batch_size=64, test_batch_size=64)
 
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # args.device = torch.device("mps")
     logger.info(f"Using device: {args.device}")
     args.data_loader = data["train_loader"]
     args.val_dataloader = data["val_loader"]
     args.test_dataloader = data["test_loader"]
     args.scalers = data["scalers"]
-    model = GATSeq2seq(adj_mat, args)
+    model = GATSeq2seq(adj_mat, args).to(args.device)
+    print(f"Model is on device: {next(model.parameters()).device}")
+    # model.to(args.device)
     args.optimizer = torch.optim.Adam(params=model.parameters(), lr=0.01, eps=1.0e-3, amsgrad=True)
     args.num_samples = data["x_train"].shape[0]
     args.val_samples = data["x_val"].shape[0]
@@ -417,171 +394,11 @@ if __name__ == "__main__":
     args.early_stopper = EarlyStopper(tolerance=15, min_delta=0.01)
     # training_iter_time = num_samples / batch_size
     # len_epoch = math.ceil(num_samples / batch_size)
-    args.len_epoch = 100  #500
-    total_train_time = train(model, args, logger)
-    # best_val = float('inf')
-    # train_list, val_list, test_list = [], [], []
-    # model.to(device)
-    # for epoch in range(len_epoch):
-    #     model.train()
-    #     train_rmse_loss = 0
-    #     # training_time += train_epoch_time
-    #     '''
-    #     code from dcrnn_trainer.py, _train_epoch()
-    #     '''
-    #     start_time = time.time()  # record the start time of each epoch
-    #     total_loss = 0
-    #     # total_metrics = np.zeros(len(metrics))
-    #     for batch_idx, (data, target) in enumerate(data_loader.get_iterator()):
-    #         data = torch.FloatTensor(data)
-    #         # data = data[..., :1]
-    #         target = torch.FloatTensor(target)
-    #         label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
-    #         data, target = data.to(device), target.to(device)
-    #
-    #         optimizer.zero_grad()
-    #
-    #         #data [bc, seq, node, feature]
-    #         global_step = (epoch+1 - 1) * len_epoch + batch_idx
-    #         teacher_forcing_ratio = _compute_sampling_threshold(global_step, cl_decay_steps)
-    #
-    #         #data [bc, seq, node, feature]
-    #         # for i in range(num_nodes):
-    #         # output = model(data.permute(0, 2, 1, 3).reshape([-1, seq_len, output_dim]), target.permute(0, 2, 1, 3).reshape(
-    #         #     [-1, seq_len, output_dim]), teacher_forcing_ratio)
-    #         # data [bc, seq_len, feature 105]
-    #         output = model(data, target, teacher_forcing_ratio)
-    #         output = output.reshape([batch_size, num_nodes, seq_len, -1]).permute(0, 2, 1, 3)
-    #
-    #         # output = output.reshape([batch_size, num_nodes, seq_len, output_dim]).permute(0, 2, 1, 3)
-    #         # loss_sup_seq = [torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2) for step_t in range(12)]  #training loss function
-    #         loss_sup_seq = [torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2) for step_t in range(12)]  #training loss function
-    #         train_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(1)] # training metric for each step
-    #
-    #         loss = sum(loss_sup_seq) / len(loss_sup_seq) / batch_size
-    #         train_rmse = sum(train_rmse) / len(train_rmse) / batch_size
-    #         # loss = loss(output.cpu(), label)  # loss is self-defined, need cpu input
-    #         loss.backward()
-    #         # add max grad clipping
-    #         torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-    #         optimizer.step()
-    #         training_iter_time = time.time() - start_time
-    #         total_train_time += training_iter_time
-    #
-    #         # writer.set_step((epoch - 1) * len_epoch + batch_idx)
-    #         # writer.add_scalar('loss', loss.item())
-    #         # total_loss += loss.item()
-    #         # train_mse_loss += loss.item()
-    #         train_rmse_loss += train_rmse.item()  #metric  sum of each node and each iteration
-    #         # total_metrics += _eval_metrics(output.detach().numpy(), label.numpy()
-    #
-    #         # if batch_idx % log_step == 0:
-    #         #     logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-    #         #         epoch,
-    #         #         _progress(batch_idx),
-    #         #         loss.item())
-    #
-    #         if batch_idx == len_epoch:
-    #             break
-    #
-    #     train_rmse_loss = train_rmse_loss / train_iters
-    #     # print(f"Epoch: {epoch}, train_RMSE: {train_rmse_loss}")
-    #     logger.info(f"Epoch [{epoch+1}/{len_epoch}], train_RMSE: {train_rmse_loss:.4f}")
-    #
-    #
-    #
-    #     # validation
-    #     if epoch % 5 == 0 and epoch != 0 :
-    #         val_mse_loss = 0
-    #         val_mask_rmse_loss = []
-    #         val_mask_mae_loss = []
-    #         val_mask_mape_loss = []
-    #         # validation
-    #         model.eval()
-    #         with torch.no_grad():
-    #             for batch_idx, (data, target) in enumerate(val_dataloader.get_iterator()):
-    #                 data = torch.FloatTensor(data)
-    #                 # data = data[..., :1]
-    #                 target = torch.FloatTensor(target)
-    #                 label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
-    #                 data, target = data.to(device), target.to(device)
-    #
-    #                 # output = model(data[:, :, i, :], torch.zeros(target[:, :, i, :].size()), 0) # 0:teacher forcing rate
-    #                 output = model(data, target, teacher_forcing_ratio=0)
-    #                 output = output.reshape([batch_size, num_nodes, seq_len, -1]).permute(0, 2, 1, 3)
-    #                 # output = output.reshape([batch_size, num_nodes, seq_len, output_dim]).permute(0, 2, 1, 3)
-    #                 # output = torch.transpose(output.view(12, model.batch_size, model.num_nodes,
-    #                 #                              model._output_dim), 0, 1)  # back to (50, 12, 207, 1)
-    #
-    #                 val_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(1)]   # 12 graphs
-    #                 val_rmse = sum(val_rmse) / len(val_rmse) / batch_size
-    #
-    #                 val_mse_loss += val_rmse.item()
-    #                 val_mask_rmse_loss.append(masked_rmse_np(output.numpy(), label.numpy()))
-    #                 val_mask_mape_loss.append(masked_mape_np(output.numpy(), label.numpy()))
-    #                 val_mask_mae_loss.append(masked_mae_np(output.numpy(), label.numpy()))
-    #
-    #
-    #         val_mse_loss = val_mse_loss / val_iters
-    #         val_mask_rmse_loss = np.mean(val_mask_rmse_loss)
-    #         val_mask_mape_loss = np.mean(val_mask_mape_loss)
-    #         val_mask_mae_loss = np.mean(val_mask_mae_loss)
-    #         # print(f"Epoch: {epoch}, val_RMSE: {val_mse_loss}")
-    #         logger.info(f"Epoch [{epoch+1}/{len_epoch}], val_RMSE: {val_mse_loss:.4f}, val_MASK_RMSE: {val_mask_rmse_loss:.4f}, val_MASK_MAPE: {val_mask_mae_loss:.4f}, val_MASK_MAE: {val_mask_mape_loss:.4f}")
-    #         train_list.append(train_rmse_loss)
-    #         val_list.append(val_mse_loss)
-    #         if args.mode == "in-sample":
-    #             np.save("./result/"+args.filename+"_train_loss.npy", train_list)
-    #             np.save("./result/"+args.filename+"_val_loss.npy", val_list)
-    #             if val_mse_loss < best_val:
-    #                 best_val = val_mse_loss
-    #                 torch.save(model.state_dict(), "./result/"+args.filename+".pt")
-    #         else:
-    #             np.save("./result/"+args.filename+"_train_loss_ood.npy", train_list)
-    #             np.save("./result/"+args.filename+"_val_loss_ood.npy", val_list)
-    #             if val_mse_loss < best_val:
-    #                 best_val = val_mse_loss
-    #                 torch.save(model.state_dict(), "./result/"+args.filename+"_ood.pt")
-    #         if early_stopper.early_stop(val_mse_loss):
-    #             # break
-    #             pass
-    # # Testing
-    # test_mse_loss = 0
-    # test_mask_rmse_loss = []
-    # test_mask_mae_loss = []
-    # test_mask_mape_loss = []
-    # if args.mode == "in-sample":
-    #     model.load_state_dict(torch.load("./result/"+args.filename+".pt"))
-    # elif args.mode == "ood":
-    #     model.load_state_dict(torch.load("./result/"+args.filename+"_ood.pt"))
-    # model.eval()
-    # with torch.no_grad():
-    #     for batch_idx, (data, target) in enumerate(test_dataloader.get_iterator()):
-    #         data = torch.FloatTensor(data)
-    #         # data = data[..., :1]
-    #         target = torch.FloatTensor(target)
-    #         label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
-    #         data, target = data.to(device), target.to(device)
-    #
-    #         # output = model(data[:, :, i, :], torch.zeros(target[:, :, i, :].size()), 0)
-    #         # output = torch.transpose(output.view(12, model.batch_size, model.num_nodes,
-    #         #                              model._output_dim), 0, 1)  # back to (50, 12, 207, 1)
-    #         output = model(data, target, teacher_forcing_ratio=0)
-    #         output = output.reshape([batch_size, num_nodes, seq_len, -1]).permute(0, 2, 1, 3)
-    #         # output = output.reshape([batch_size, num_nodes, seq_len, output_dim]).permute(0, 2, 1, 3)
-    #         test_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(1)]
-    #         test_rmse = sum(test_rmse) / len(test_rmse) / batch_size
-    #
-    #         test_mse_loss += test_rmse.item()
-    #         test_mask_rmse_loss.append(masked_rmse_np(output.numpy(), label.numpy()))
-    #         test_mask_mape_loss.append(masked_mape_np(output.numpy(), label.numpy()))
-    #         test_mask_mae_loss.append(masked_mae_np(output.numpy(), label.numpy()))
-    #
-    # test_mse_loss = test_mse_loss / test_iters
-    # test_mask_rmse_loss = np.mean(test_mask_rmse_loss)
-    # test_mask_mape_loss = np.mean(test_mask_mape_loss)
-    # test_mask_mae_loss = np.mean(test_mask_mae_loss)
-    # print(f"test_MSE: {test_mse_loss}, Time: {total_train_time}")
-    test_mse_loss, test_mask_rmse_loss, test_mask_mae_loss, test_mask_mape_loss = test(model, args, logger)
-    logger.info(f"testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}, test_MASK_RMSE: {test_mask_rmse_loss:.4f}, test_MASK_MAE: {test_mask_mae_loss:.4f}, test_MASK_MAPE: {test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
-
+    args.len_epoch = 150  #500
+    args.data_loader = data["train_loader"]
+    args.val_dataloader = data["val_loader"]
+    args.test_dataloader = data["test_loader"]
+    args.scalers = data["scalers"]
+    trainer = Trainer(model, args, logger)
+    total_train_time = trainer.train()  # annotate for testing
+    trainer.test(total_train_time)

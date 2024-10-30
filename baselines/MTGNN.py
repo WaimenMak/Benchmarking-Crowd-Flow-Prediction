@@ -12,14 +12,21 @@ from lib.utils import build_graph, load_dataset, EarlyStopper
 import math
 import logging
 import argparse
-from lib.train_test import train
+from lib.train_test import Trainer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class gtnet(nn.Module):
-    def __init__(self, gcn_true, buildA_true, gcn_depth, num_nodes, device, predefined_A=None, static_feat=None, dropout=0.3, subgraph_size=20, node_dim=40, dilation_exponential=1, conv_channels=32, residual_channels=32, skip_channels=64, end_channels=128, seq_length=12, in_dim=3, out_dim=12, layers=3, propalpha=0.05, tanhalpha=3, layer_norm_affline=True):
+    def __init__(self, gcn_true, buildA_true, gcn_depth, num_nodes, device, predefined_A=None,
+                 static_feat=None, dropout=0.3, subgraph_size=20,
+                 node_dim=40, dilation_exponential=1, conv_channels=32,
+                 residual_channels=32, skip_channels=64,
+                 end_channels=128, seq_length=12,
+                 in_dim=3, out_dim=3, layers=3,
+                 propalpha=0.05, tanhalpha=3,
+                 layer_norm_affline=True):
         super(gtnet, self).__init__()
         self.gcn_true = gcn_true
         self.buildA_true = buildA_true
@@ -213,16 +220,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    file_handler = logging.FileHandler("./result/train "+args.filename+".log")
+    file_handler = logging.FileHandler("../result/train "+args.filename+".log")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(file_handler)
 
 
     if args.mode == "in-sample":
-        data = load_dataset("./dataset", batch_size=64, test_batch_size=64)
+        data = load_dataset("../dataset", batch_size=64, test_batch_size=64)
     elif args.mode == "ood":
-        data = load_dataset("./ood_dataset", batch_size=64, test_batch_size=64)
+        data = load_dataset("../ood_dataset", batch_size=64, test_batch_size=64)
 
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {args.device}")
@@ -232,6 +239,10 @@ if __name__ == "__main__":
     args.scalers = data["scalers"]
     args.max_grad_norm = 5
     args.cl_decay_steps = 2000
+    args.seq_len = 12
+    args.cl = False
+    args.loss_func = "none"
+    args.step = 12
     model = gtnet(args.gcn_true, args.buildA_true, args.gcn_depth, args.num_nodes,
               device, predefined_A=adj_mat,
               dropout=args.dropout, subgraph_size=args.subgraph_size,
@@ -253,4 +264,6 @@ if __name__ == "__main__":
     # training_iter_time = num_samples / batch_size
     # len_epoch = math.ceil(num_samples / batch_size)
     args.len_epoch = 100  #500
-    total_train_time = train(model, args, logger)
+    trainer = Trainer(model, args, logger)
+    total_train_time = trainer.train()  # annotate for testing
+    trainer.test(total_train_time)

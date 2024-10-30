@@ -12,7 +12,7 @@ from lib.utils import load_dataset, EarlyStopper, build_graph
 import math
 import argparse
 import logging
-from lib.train_test import train, test
+from lib.train_test import Trainer
 import torch.nn.functional as F
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -145,34 +145,27 @@ class AGCRN(nn.Module):
         return output
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', type=str, default='in-sample', help='dataset choice')
-    parser.add_argument('--filename', type=str, default='agcrn', help='file name')
-    args = parser.parse_args()
-    training_iter_time = 0
-    total_train_time = 0
+def main(args):
     G = build_graph()
     adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
     adj_mat.setdiag(1)
     args.default_graph = adj_mat
-    args.batch_size = 64
+    args.batch_size = 32
     args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
     args.dec_input_dim = 3  # decoder input
-    args.max_diffusion_step = 2
+    # args.max_diffusion_step = 2
     args.num_nodes = 35
     args.num_rnn_layers = 2
     args.rnn_units = 64
     args.seq_len = 12
     args.output_dim = 3
+    args.features = 3      # actual features
     args.device = device
     args.embed_dim = 10
     args.cheb_k = 3
     args.max_grad_norm = 5
-    args.lr = 0.001
+    args.lr = 0.005
     args.cl_decay_steps = 2000
-
-
 
     file_handler = logging.FileHandler("./result/train "+args.filename+".log")
     file_handler.setLevel(logging.INFO)
@@ -204,8 +197,81 @@ if __name__ == "__main__":
     # training_iter_time = num_samples / batch_size
     # len_epoch = math.ceil(num_samples / batch_size)
 
+    trainer = Trainer(model, args, logger)
     args.len_epoch = 100  #500
-    total_train_time = train(model, args, logger)
+    total_train_time = trainer.train()
 
-    test_mse_loss, test_mask_rmse_loss, test_mask_mae_loss, test_mask_mape_loss = test(model, args, logger)
-    logger.info(f"testing method: {args.mode}, test_RMSE: {test_mse_loss:.4f}, test_MASK_RMSE: {test_mask_rmse_loss:.4f}, test_MASK_MAE: {test_mask_mae_loss:.4f}, test_MASK_MAPE: {test_mask_mape_loss:.4f}, Time: {total_train_time:.4f}")
+   # total_train_time = trainer.train()  # annotate for testing
+    trainer.test(total_train_time)
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='in-sample', help='dataset choice')
+    parser.add_argument('--filename', type=str, default='agcrn', help='file name')
+    args = parser.parse_args()
+    args.filename = "agcrn"
+    training_iter_time = 0
+    total_train_time = 0
+    G = build_graph()
+    adj_mat = G.adjacency_matrix(transpose=False, scipy_fmt="csr")
+    adj_mat.setdiag(1)
+    args.default_graph = adj_mat
+    args.batch_size = 64
+    args.enc_input_dim = 3  # encoder network input size, can be 1 or 3
+    args.dec_input_dim = 3  # decoder input
+    # args.max_diffusion_step = 2
+    args.num_nodes = 35
+    args.num_rnn_layers = 2
+    args.rnn_units = 32
+    args.seq_len = 12
+    args.output_dim = 3
+    args.device = device
+    args.embed_dim = 10
+    args.cheb_k = 2
+    args.max_grad_norm = 5
+    args.lr = 0.0005
+    args.cl_decay_steps = 2000
+    args.cl = False
+    args.loss_func = "none"
+    args.step = 12
+
+
+
+    file_handler = logging.FileHandler("../result/train "+args.filename+".log")
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(file_handler)
+
+
+    if args.mode == "in-sample":
+        data = load_dataset("../dataset", batch_size=64, test_batch_size=64)
+    elif args.mode == "ood":
+        data = load_dataset("../ood_dataset", batch_size=64, test_batch_size=64)
+
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Using device: {args.device}")
+    args.data_loader = data["train_loader"]
+    args.val_dataloader = data["val_loader"]
+    args.test_dataloader = data["test_loader"]
+    args.scalers = data["scalers"]
+    model = AGCRN(args)
+    # model.train()
+    args.optimizer = torch.optim.Adam(params=model.parameters(), lr=args.lr, eps=1.0e-3, amsgrad=True)
+    args.num_samples = data["x_train"].shape[0]
+    args.val_samples = data["x_val"].shape[0]
+    args.test_samples = data["x_test"].shape[0]
+    args.train_iters = math.ceil(args.num_samples / args.batch_size)
+    args.val_iters = math.ceil(args.val_samples / args.batch_size)
+    args.test_iters = math.ceil(args.test_samples / args.batch_size)
+    args.early_stopper = EarlyStopper(tolerance=10, min_delta=0.01)
+    # training_iter_time = num_samples / batch_size
+    # len_epoch = math.ceil(num_samples / batch_size)
+
+    trainer = Trainer(model, args, logger)
+    args.len_epoch = 100  #500
+    total_train_time = trainer.train()
+
+   # total_train_time = trainer.train()  # annotate for testing
+    trainer.test(total_train_time)
