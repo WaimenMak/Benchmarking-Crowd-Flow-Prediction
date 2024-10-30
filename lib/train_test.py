@@ -44,13 +44,12 @@ class Trainer():
         log_dir = "./result/"+args.filename+"_logs/"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        writer = SummaryWriter(log_dir=log_dir)
+        # writer = SummaryWriter(log_dir=log_dir)
         model = self.model
         logger = self.logger
-        model.to(args.device)
+        # model.to(args.device)
         best_val = float('inf')
         train_list, val_list, test_list = [], [], []
-        model.to(args.device)
         start_time = time.time()  # record the start time of each epoch
         for epoch in range(args.len_epoch):
             model.train()
@@ -66,14 +65,12 @@ class Trainer():
                 data = data[:, -args.step:, :, :]  # defining input sequence length
                 # data = data[..., :1]
                 target = torch.FloatTensor(target)
-                label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
+                label = target[..., :args.features].to(args.device)  # (..., 1)  supposed to be numpy array
                 data, target = data.to(args.device), target.to(args.device)
 
                 args.optimizer.zero_grad()
 
-                #data [bc, seq, node, feature]
-                global_step = (epoch+1 - 1) * args.len_epoch + batch_idx
-                teacher_forcing_ratio = _compute_sampling_threshold(global_step, args.cl_decay_steps)
+
 
                 #data [bc, seq, node, feature]
                 # for i in range(num_nodes):
@@ -95,21 +92,40 @@ class Trainer():
                         output = model(tx.transpose(3, 1), idx=id)
                         output = output.transpose(1,3)
                         label = ty
+                elif args.filename == 'stgcn':
+                    output_list = []
+                    """recursive loss"""
+                    inpt = data
+                    pred = model(inpt)
+                    output_list.append(pred)
+                    for i in range(args.seq_len - 1):
+                        inpt = torch.concat((inpt, pred), dim=1)[:, 1:, :, :]
+                        pred = model(inpt)
+                        output_list.append(pred)
+                    output = torch.concat(output_list, dim=1)
+                elif args.filename == 'nbeat':
+                    output = model(data)
                 else:
+                    #data [bc, seq, node, feature]
+                    global_step = (epoch+1 - 1) * args.len_epoch + batch_idx
+                    teacher_forcing_ratio = _compute_sampling_threshold(global_step, args.cl_decay_steps)
                     # output should be [bc, seq_len, num_nodes, features]
                     output = model(data, target, teacher_forcing_ratio)
                 # output = output.reshape([batch_size, num_nodes, seq_len, output_dim]).permute(0, 2, 1, 3)
                 # loss_sup_seq = [torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2) for step_t in range(12)]  #training loss function
-                train_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(args.seq_len)] # training metric for each step
+                                #curriculum learning, code from MTGNN trainer.py
 
-                train_rmse = sum(train_rmse) / len(train_rmse) / args.batch_size
-                #curriculum learning, code from MTGNN trainer.py
                 if self.iter%self.step==0 and self.task_level<=self.seq_out_len: # seq_out_len 12
                     self.task_level +=1
                 if self.cl:
                     loss = self.loss(output[:, :self.task_level, :, :], label[:, :self.task_level, :, :])
                 else:
                     loss = self.loss(output, label)  # loss is self-defined, need cpu input
+
+                train_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(args.seq_len)] # training metric for each step
+
+                train_rmse = sum(train_rmse) / len(train_rmse) / args.batch_size
+
 
                 loss.backward()
                 # add max grad clipping
@@ -128,7 +144,7 @@ class Trainer():
                     break
 
             train_rmse_loss = train_rmse_loss / args.train_iters
-            writer.add_scalar("Loss/train", loss.item(), global_step=epoch)
+            # writer.add_scalar("Loss/train", loss.item(), global_step=epoch)
             logger.info(f"Epoch [{epoch+1}/{args.len_epoch}], train_RMSE: {train_rmse_loss:.4f}")
 
 
@@ -146,11 +162,24 @@ class Trainer():
                         data = torch.FloatTensor(data)
                         data = data[:, -args.step:,:,:]
                         target = torch.FloatTensor(target)
-                        label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
+                        label = target[..., :args.features]  # (..., 1)  supposed to be numpy array
                         data, target = data.to(args.device), target.to(args.device)
 
-
-                        output = model(data, target, teacher_forcing_ratio=0)
+                        if args.filename in ["nbeat"]:
+                            output = model(data)
+                        elif args.filename == "stgcn":
+                            output_list = []
+                            """recursive loss"""
+                            inpt = data
+                            pred = model(inpt)
+                            output_list.append(pred)
+                            for i in range(args.seq_len - 1):
+                                inpt = torch.concat((inpt, pred), dim=1)[:, 1:, :, :]
+                                pred = model(inpt)
+                                output_list.append(pred)
+                            output = torch.concat(output_list, dim=1)
+                        else:
+                            output = model(data, target, teacher_forcing_ratio=0)
                         # output = output.reshape([args.batch_size, args.num_nodes, args.seq_len, -1]).permute(0, 2, 1, 3)
                         val_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(args.seq_len)]   # 12 graphs
                         val_rmse = sum(val_rmse) / len(val_rmse) / args.batch_size
@@ -223,13 +252,29 @@ class Trainer():
                 data = torch.FloatTensor(data)
                 # data = data[..., :1]
                 target = torch.FloatTensor(target)
-                label = target[..., :model._output_dim]  # (..., 1)  supposed to be numpy array
+                label = target[..., :args.features]  # (..., 1)  supposed to be numpy array
                 data, target = data.to(args.device), target.to(args.device)
 
                 # output = model(data[:, :, i, :], torch.zeros(target[:, :, i, :].size()), 0)
                 # output = torch.transpose(output.view(12, model.batch_size, model.num_nodes,
                 #                              model._output_dim), 0, 1)  # back to (50, 12, 207, 1)
-                output = model(data, target, teacher_forcing_ratio=0)
+                if args.filename == "stgcn":
+                    output_list = []
+                    """recursive loss"""
+                    inpt = data
+                    pred = model(inpt)
+                    output_list.append(pred)
+
+                    for i in range(args.seq_len - 1):
+                        inpt = torch.concat((inpt, pred), dim=1)[:, 1:, :, :]
+                        pred = model(inpt)
+                        output_list.append(pred)
+                    output = torch.concat(output_list, dim=1)
+                elif args.filename == "nbeat":
+                    output = model(data)
+
+                else:
+                    output = model(data, target, teacher_forcing_ratio=0)
                 # output = output.reshape([args.batch_size, args.num_nodes, args.seq_len, -1]).permute(0, 2, 1, 3)
                 # output = output.reshape([batch_size, num_nodes, seq_len, output_dim]).permute(0, 2, 1, 3)
                 test_rmse = [torch.sum(torch.sqrt(torch.sum((output[:, step_t, :, :] - label[:, step_t, :, :]) ** 2, dim=(1,2)))) for step_t in range(12)]
