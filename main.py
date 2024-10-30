@@ -23,13 +23,17 @@ def str_to_bool(value):
 
 # mmai$ ssh mmai@login.delftblue.tudelft.nl
 if __name__ == "__main__":
+    import torch
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', type=str, default='in-sample', help='dataset choice')
-    parser.add_argument('--filename', type=str, default='gatrnn', help='file name')
+    parser.add_argument('--mode', type=str, default='ood', help='dataset choice')
+    parser.add_argument('--filename', type=str, default='stgcn', help='file name')
     parser.add_argument('--cl', type=str_to_bool, default=False,help='whether to do curriculum learning')
     parser.add_argument('--loss_func', type=str, default='none', help='loss func')
     parser.add_argument('--step', type=int, default=12, help='input seq len')
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # parser.add_argument('--device', type=str, default=device, help='device')
     args = parser.parse_args()
+    # args.device = device
     # model = "Linear Regression"
     if args.filename == "lr":
         from baselines.LRegression import main
@@ -55,6 +59,12 @@ if __name__ == "__main__":
         from baselines.VAR import main
     elif args.filename == "gatrnn":
         from baselines.GATRNN import main
+    elif args.filename == "agcrn":
+        from baselines.AGCRN import main
+    elif args.filename == "stgcn":
+        from baselines.STGCN import main
+    elif args.filename == "nbeat":
+        from baselines.NBEAT import main
     else:
         raise Exception("model is not in storage.")
 
