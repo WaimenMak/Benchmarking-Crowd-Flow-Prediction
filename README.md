@@ -11,7 +11,7 @@ Raw_data: For visualization.
 * train_station_model: The .mod file for the train station model.
 
 ## Extract the scenario data
-For folder `sc sensor`, we have the following data structure:
+`sc sensor` and `sc sensor 2` contain the raw flow data. For folder `sc sensor`, we have the following data structure:
 ```python
 # Juptyer script
 parent_dir = './sc sensor/'
