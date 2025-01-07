@@ -1,4 +1,4 @@
-# Crowd-Flow-Prediction
+# Benchmarking Crowd Flow Prediction
 
 Raw_data: For visualization.
 
@@ -49,3 +49,14 @@ parent_dir = './sc sensor 2/'
 # Loop through each subdirectory in the parent directory
 df_dict = process_sensor_data(parent_dir, df_dict)  # only process sensor 2
 ```
+## Generate data to datadict, process data to matrix
+```python
+from lib.utils import gen_data_dict
+data_dict = gen_data_dict(df_dict)
+```
+
+## Macroscopic Fundamental Diagram of Different scenarios
+The following graph shows the macroscopic fundamental diagram of different scenarios. 
+
+![mfds](/Users/mmai/Devs/Benchmarking-Crowd-Prediction/README.assets/mfds.png)
+
