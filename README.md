@@ -11,7 +11,7 @@ Raw_data: For visualization.
 * train_station_model: The .mod file for the train station model.
 
 ## Extract the scenario data
-For folder `sc sensor`, we have the following data structure:
+`sc sensor` and `sc sensor 2` contain the raw flow data. For folder `sc sensor`, we have the following data structure:
 ```python
 # Juptyer script
 parent_dir = './sc sensor/'
@@ -49,6 +49,7 @@ parent_dir = './sc sensor 2/'
 # Loop through each subdirectory in the parent directory
 df_dict = process_sensor_data(parent_dir, df_dict)  # only process sensor 2
 ```
+
 ## Generate data to datadict, process data to matrix
 ```python
 from lib.utils import gen_data_dict
@@ -56,7 +57,6 @@ data_dict = gen_data_dict(df_dict)
 ```
 
 ## Macroscopic Fundamental Diagram of Different scenarios
-The following graph shows the macroscopic fundamental diagram of different scenarios. 
-
+The following graph shows the macroscopic fundamental diagram of different scenarios.
 ![mfds](/Users/mmai/Devs/Benchmarking-Crowd-Prediction/README.assets/mfds.png)
 
