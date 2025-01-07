@@ -58,5 +58,5 @@ data_dict = gen_data_dict(df_dict)
 
 ## Macroscopic Fundamental Diagram of Different scenarios
 The following graph shows the macroscopic fundamental diagram of different scenarios.
-![mfds](/Users/mmai/Devs/Benchmarking-Crowd-Prediction/README.assets/mfds.png)
+![mfds](./README.assets/mfds.png)
 
