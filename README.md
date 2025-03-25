@@ -14,15 +14,15 @@
 <table>
 <tr>
 <td><figure>
-<img src="./README.assets/image16.gif" alt="train_delay" style="zoom: 33%;" />
+<img src="./README.assets/image16.gif" alt="train_delay" style="zoom: 50%;" />
   <figcaption>Train Delay</figcaption>
 </figure></td>
 <td><figure>
-<img src="./README.assets/image17.gif" alt="high_demand" style="zoom: 33%;" />
+<img src="./README.assets/image17.gif" alt="high_demand" style="zoom: 50%;" />
   <figcaption>High Demand</figcaption>
 </figure></td>
 <td><figure>
-<img src="./README.assets/image14.gif" alt="evacuation" style="zoom: 60%;" />
+<img src="./README.assets/image14.gif" alt="evacuation" style="zoom: 50%;" />
   <figcaption>Evacuation</figcaption>
 </figure></td>
 </tr>
