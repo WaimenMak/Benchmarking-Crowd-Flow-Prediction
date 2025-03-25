@@ -1,4 +1,4 @@
-# Benchmarking Crowd Flow Prediction
+# Evaluating Crowd Flow Forecasting Algorithms for Indoor Pedestrian Spaces: A Benchmark Using a Synthetic Dataset
 
 ## Dataset
 * `dataset`: For in-distribution prediction.
