@@ -14,19 +14,21 @@
 <table>
 <tr>
 <td><figure>
-<img src="./README.assets/image16.gif" alt="train_delay" style="zoom: 50%;" />
+<img src="./README.assets/image16.gif" alt="train_delay" width="300" />
   <figcaption>Train Delay</figcaption>
 </figure></td>
 <td><figure>
-<img src="./README.assets/image17.gif" alt="high_demand" style="zoom: 50%;" />
+<img src="./README.assets/image17.gif" alt="high_demand" width="300" />
   <figcaption>High Demand</figcaption>
 </figure></td>
 <td><figure>
-<img src="./README.assets/image14.gif" alt="evacuation" style="zoom: 50%;" />
+<img src="./README.assets/image14.gif" alt="evacuation" width="300" />
   <figcaption>Evacuation</figcaption>
 </figure></td>
 </tr>
 </table>
+
+
 
 
 
