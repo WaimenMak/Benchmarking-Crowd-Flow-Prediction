@@ -10,8 +10,31 @@ Raw_data: For visualization.
 ## Train Station Model
 * train_station_model: The .mod file for the train station model.
 
+## Simulation Visualization
+<table>
+<tr>
+<td><figure>
+<img src="./README.assets/image16.gif" alt="train_delay" style="zoom: 33%;" />
+  <figcaption>Train Delay</figcaption>
+</figure></td>
+<td><figure>
+<img src="./README.assets/image17.gif" alt="high_demand" style="zoom: 33%;" />
+  <figcaption>High Demand</figcaption>
+</figure></td>
+<td><figure>
+<img src="./README.assets/image14.gif" alt="evacuation" style="zoom: 60%;" />
+  <figcaption>Evacuation</figcaption>
+</figure></td>
+</tr>
+</table>
+
+
+
+
+
 ## Extract the scenario data
 `sc sensor` and `sc sensor 2` contain the raw flow data. For folder `sc sensor`, we have the following data structure:
+
 ```python
 # Juptyer script
 parent_dir = './sc sensor/'
