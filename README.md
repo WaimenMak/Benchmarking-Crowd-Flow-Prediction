@@ -1,14 +1,14 @@
 # Benchmarking Crowd Flow Prediction
 
 ## Dataset
-* dataset: For in-distribution prediction.
-* ood_dataset: For out-of-distribution prediction.
-* scenario_dataset: For scenario-based prediction.
-* sc sensor & sc sensor 2: The raw flow data for the train station model.
+* `dataset`: For in-distribution prediction.
+* `ood_dataset`: For out-of-distribution prediction.
+* `scenario_dataset`: For scenario-based prediction.
+* `sc sensor` & `sc sensor` 2: The raw flow data for the train station model.
 
 
 ## Train Station Model
-* train_station_model: The .mod file for the train station model.
+* `simulation/train_station.mod`: The .mod file for the train station model.
 
 ## Simulation Visualization
 <table>
