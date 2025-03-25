@@ -4,7 +4,7 @@
 * `dataset`: For in-distribution prediction.
 * `ood_dataset`: For out-of-distribution prediction.
 * `scenario_dataset`: For scenario-based prediction.
-* `sc sensor` & `sc sensor` 2: The raw flow data for the train station model.
+* `sc sensor` & `sc sensor 2` : The raw flow data for the train station model.
 
 
 ## Train Station Model
