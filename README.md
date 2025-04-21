@@ -28,12 +28,6 @@
 </tr>
 </table>
 
-
-
-
-
-
-
 ## Extract the scenario data
 `sc sensor` and `sc sensor 2` contain the raw flow data. For folder `sc sensor`, we have the following data structure:
 
@@ -84,4 +78,21 @@ data_dict = gen_data_dict(df_dict)
 ## Macroscopic Fundamental Diagram of Different scenarios
 The following graph shows the macroscopic fundamental diagram of different scenarios.
 ![mfds](./README.assets/mfds.png)
+
+## Citation
+If you use this dataset in your research, please cite the following paper:
+
+```bibtex
+@ARTICLE{10967041,
+  author={Mai, Weiming and Duives, Dorine and Krishnakumari, Panchamy and Hoogendoorn, Serge},
+  journal={IEEE Transactions on Intelligent Transportation Systems}, 
+  title={Evaluating Crowd Flow Forecasting Algorithms for Indoor Pedestrian Spaces: A Benchmark Using a Synthetic Dataset}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={1-16},
+  keywords={Predictive models;Pedestrians;Forecasting;Data models;Synthetic data;Sensors;Computational modeling;Pipelines;Monitoring;Mathematical models;Simulation modeling;crowd flow prediction;data-driven methods},
+  doi={10.1109/TITS.2025.3559353}}
+
+```
 
